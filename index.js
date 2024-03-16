@@ -1,4 +1,3 @@
-
 require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
@@ -22,6 +21,9 @@ const pool = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
+  waitForConnections: true, // To queue connection requests during high traffic
+  connectionLimit: 10, // Limiting the number of connections to the database
+  queueLimit: 0 // No limit to queued connection requests
 });
 
 // Route to check login credentials
@@ -62,7 +64,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Get all profiles
+// Route to fetch all profiles
 app.get('/profiles', async (req, res) => {
   try {
     const connection = await pool.getConnection();
@@ -122,7 +124,11 @@ app.delete('/profiles/:id', async (req, res) => {
 app.get('/tasks', async (req, res) => {
   try {
     const connection = await pool.getConnection();
-    const [rows] = await connection.query('SELECT * FROM tasks');
+    const [rows] = await connection.query(`
+      SELECT tasks.*, profiles.name AS profile_name
+      FROM tasks
+      LEFT JOIN profiles ON tasks.profile_id = profiles.id
+    `);
     connection.release();
     res.json(rows);
   } catch (err) {
@@ -131,7 +137,7 @@ app.get('/tasks', async (req, res) => {
   }
 });
 
- // API endpoint to add a task
+// API endpoint to add a task
 app.post('/tasks', async (req, res) => {
   const { profileId, name, description, deadline, status } = req.body;
   try {
@@ -147,7 +153,6 @@ app.post('/tasks', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-
 
 // Route to update task status
 app.put('/tasks/:id', async (req, res) => {
@@ -181,5 +186,3 @@ app.delete('/tasks/:id', async (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
-
-
