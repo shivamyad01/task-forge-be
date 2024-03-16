@@ -1,3 +1,4 @@
+
 require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const cors = require('cors');
@@ -130,33 +131,23 @@ app.get('/tasks', async (req, res) => {
   }
 });
 
-// Route to create a new task
+ // API endpoint to add a task
 app.post('/tasks', async (req, res) => {
   const { profileId, name, description, deadline, status } = req.body;
   try {
-    // Check if the profileId exists in the users table
     const connection = await pool.getConnection();
-    const [userRows] = await connection.query('SELECT * FROM users WHERE id = ?', [profileId]);
+    await connection.execute(
+      'INSERT INTO tasks (profile_id, name, description, deadline, status) VALUES (?, ?, ?, ?, ?)',
+      [profileId, name, description, deadline, status]
+    );
     connection.release();
-
-    if (userRows.length === 0) {
-      // If the profileId does not exist, return an error response
-      return res.status(400).json({ error: 'Invalid profileId' });
-    }
-
-    // If the profileId is valid, proceed with inserting the task
-    const newTask = { profileId, name, description, deadline, status };
-    const insertTaskQuery = 'INSERT INTO tasks SET ?';
-    const taskConnection = await pool.getConnection();
-    await taskConnection.query(insertTaskQuery, [newTask]);
-    taskConnection.release();
-
-    res.status(201).json({ message: 'Task created successfully' });
-  } catch (err) {
-    console.error('Error creating task:', err);
+    res.status(201).json({ message: 'Task added successfully' });
+  } catch (error) {
+    console.error('Error adding task:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 
 // Route to update task status
 app.put('/tasks/:id', async (req, res) => {
@@ -190,3 +181,5 @@ app.delete('/tasks/:id', async (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+
