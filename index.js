@@ -140,11 +140,17 @@ app.get('/tasks', async (req, res) => {
 // API endpoint to add a task
 app.post('/tasks', async (req, res) => {
   const { profileId, name, description, deadline, status } = req.body;
+
+  // Check if profileId is a valid integer
+  if (!profileId || isNaN(parseInt(profileId))) {
+    return res.status(400).json({ error: 'Invalid profileId' });
+  }
+
   try {
     const connection = await pool.getConnection();
     await connection.execute(
       'INSERT INTO tasks (profile_id, name, description, deadline, status) VALUES (?, ?, ?, ?, ?)',
-      [profileId, name, description, deadline, status]
+      [parseInt(profileId), name, description, deadline, status]
     );
     connection.release();
     res.status(201).json({ message: 'Task added successfully' });
@@ -153,6 +159,7 @@ app.post('/tasks', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 
 // Route to update task status
 app.put('/tasks/:id', async (req, res) => {
@@ -182,6 +189,25 @@ app.delete('/tasks/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+// Route to fetch overdue tasks
+app.get('/tasks/overdue', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    const [rows] = await connection.query(`
+      SELECT tasks.*, profiles.name AS profile_name
+      FROM tasks
+      LEFT JOIN profiles ON tasks.profile_id = profiles.id
+      WHERE tasks.deadline < CURDATE() AND tasks.status != 'completed'
+    `);
+    connection.release();
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching overdue tasks:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
