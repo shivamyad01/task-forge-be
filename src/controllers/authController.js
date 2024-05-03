@@ -1,35 +1,40 @@
 const bcrypt = require('bcrypt');
-const connection = require('../database/connection');
+const pool = require('../models/db');
 
-const checkLogin = (req, res) => {
+// Route to check login credentials
+exports.checkLogin = async (req, res) => {
   const { email, password } = req.body;
 
-  const query = 'SELECT * FROM users WHERE email = ?';
-  connection.query(query, [email], (err, results) => {
-    if (err) {
-      console.error('Error executing MySQL query:', err);
-      res.status(500).json({ error: 'Internal Server Error' });
-    } else {
-      if (results.length > 0) {
-        const user = results[0];
+  try {
+    const connection = await pool.getConnection();
+    const [rows] = await connection.query('SELECT * FROM users WHERE email = ?', [email]);
+    connection.release();
 
-        bcrypt.compare(password, user.password, (bcryptErr, passwordMatch) => {
-          if (bcryptErr) {
-            console.error('Error comparing passwords:', bcryptErr);
-            res.status(500).json({ error: 'Internal Server Error' });
-          } else {
-            if (passwordMatch) {
-              res.json({ loggedIn: true });
-            } else {
-              res.json({ loggedIn: false });
-            }
-          }
-        });
-      } else {
-        res.json({ loggedIn: false });
-      }
+    if (rows.length > 0) {
+      const user = rows[0];
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      res.json({ loggedIn: passwordMatch });
+    } else {
+      res.json({ loggedIn: false });
     }
-  });
+  } catch (err) {
+    console.error('Error checking login:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 };
 
-module.exports = { checkLogin };
+// Route to register a new user
+exports.register = async (req, res) => {
+  const { name, email, password } = req.body;
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const connection = await pool.getConnection();
+    await connection.query('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', [name, email, hashedPassword]);
+    connection.release();
+    res.json({ registered: true });
+  } catch (err) {
+    console.error('Error registering user:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+};
