@@ -53,16 +53,27 @@ app.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
-    const hashedPassword = await bcrypt.hash(password, 10);
     const connection = await pool.getConnection();
-    await connection.query('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', [name, email, hashedPassword]);
+    // Check if the user already exists
+    const [existingUsers] = await connection.query('SELECT * FROM users WHERE email = ?', [email]);
+    
+    if (existingUsers.length > 0) {
+      // If user already exists, send a message
+      res.json({ alreadyExists: true });
+    } else {
+      // If user does not exist, proceed with registration
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await connection.query('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', [name, email, hashedPassword]);
+      res.json({ registered: true });
+    }
+
     connection.release();
-    res.json({ registered: true });
   } catch (err) {
     console.error('Error registering user:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 
 // Route to fetch all profiles
 app.get('/profiles', async (req, res) => {
