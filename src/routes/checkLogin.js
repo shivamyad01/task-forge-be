@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db'); // Import the pool object from db.js
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
 
 router.post('/', async (req, res) => {
   const { email, password } = req.body;
@@ -13,8 +15,14 @@ router.post('/', async (req, res) => {
 
     if (rows.length > 0) {
       const user = rows[0];
+    
       const passwordMatch = await bcrypt.compare(password, user.password);
-      res.json({ loggedIn: passwordMatch });
+      if (passwordMatch) {
+        // Create a JWT token
+        const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.json({ loggedIn: passwordMatch, data: user, token: token });
+       
+      }
     } else {
       res.json({ loggedIn: false });
     }

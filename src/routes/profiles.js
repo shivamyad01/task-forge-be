@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db'); // Import the pool object from db.js
+const auth = require('../middleware/auth');
 
 router.get('/', async (req, res) => {
   try {
@@ -15,7 +16,7 @@ router.get('/', async (req, res) => {
 });
 
 // Add a new profile
-router.post('/', async (req, res) => {
+router.post('/',auth, async (req, res) => {
   const { name, role } = req.body;
   try {
     const connection = await pool.getConnection();
