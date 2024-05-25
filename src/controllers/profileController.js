@@ -1,25 +1,19 @@
-const pool = require('../config/db');
+const Profile = require('../../models/profile');
 
-// Get all profiles
 async function getAllProfiles(req, res) {
   try {
-    const connection = await pool.getConnection();
-    const [rows] = await connection.query('SELECT * FROM profiles');
-    connection.release();
-    res.json(rows);
+    const profiles = await Profile.findAll();
+    res.json(profiles);
   } catch (error) {
     console.error('Error fetching profiles:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
 
-// Add a new profile
 async function addProfile(req, res) {
   const { name, role } = req.body;
   try {
-    const connection = await pool.getConnection();
-    await connection.execute('INSERT INTO profiles (name, role) VALUES (?, ?)', [name, role]);
-    connection.release();
+    await Profile.create({ name, role });
     res.status(201).json({ message: 'Profile added successfully' });
   } catch (error) {
     console.error('Error adding profile:', error);
@@ -27,14 +21,11 @@ async function addProfile(req, res) {
   }
 }
 
-// Update a profile
 async function updateProfile(req, res) {
   const { id } = req.params;
   const { name, role } = req.body;
   try {
-    const connection = await pool.getConnection();
-    await connection.execute('UPDATE profiles SET name = ?, role = ? WHERE id = ?', [name, role, id]);
-    connection.release();
+    await Profile.update({ name, role }, { where: { id } });
     res.json({ message: 'Profile updated successfully' });
   } catch (error) {
     console.error('Error updating profile:', error);
@@ -42,13 +33,10 @@ async function updateProfile(req, res) {
   }
 }
 
-// Remove a profile
 async function removeProfile(req, res) {
   const { id } = req.params;
   try {
-    const connection = await pool.getConnection();
-    await connection.execute('DELETE FROM profiles WHERE id = ?', [id]);
-    connection.release();
+    await Profile.destroy({ where: { id } });
     res.json({ message: 'Profile removed successfully' });
   } catch (error) {
     console.error('Error removing profile:', error);
